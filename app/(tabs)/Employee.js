@@ -18,7 +18,7 @@ const EmployeesScreen = () => {
           <Icon name="arrow-back" type="material" color="black" />
         </TouchableOpacity>
         <Text style={styles.headerText}>Profile</Text>
-        <Icon name="search" type="material" color="white" />
+        {/* <Icon name="search" type="material" color="white" /> */}
       </View>
       <View style={styles.profileContainer}>
         <Image
@@ -89,6 +89,7 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+    justifyContent:'center'
   },
   profileContainer: {
     alignItems: 'center',
