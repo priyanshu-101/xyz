@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
 const SalaryPage = () => {
@@ -20,16 +20,25 @@ const SalaryPage = () => {
   const totalBonuses = bonuses.reduce((sum, item) => sum + item.amount, 0);
   const finalSalary = salary - totalAdvances + totalBonuses;
 
+  const handleConfirm = () => {
+    alert('Confirmation', 'Receipt generated successfully!');
+  };
+
+  // Filter data for a particular date
+  const selectedDate = '2024-08-05'; // Change this date as needed
+  const advancesForDate = advances.filter(item => item.date === selectedDate);
+  const bonusesForDate = bonuses.filter(item => item.date === selectedDate);
+
   const renderRow = ({ item, type }) => (
     <View style={styles.row}>
       <Text style={styles.cell}>{type}</Text>
-      <Text style={styles.cell}>{item.amount}</Text>
+      <Text style={styles.cell}>₹{item.amount}</Text>
       <Text style={styles.cell}>{item.date}</Text>
     </View>
   );
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
       <TouchableOpacity style={styles.backArrow} onPress={() => navigation.navigate('Profile')}>
         <Text style={styles.backArrowText}>←</Text>
       </TouchableOpacity>
@@ -63,7 +72,30 @@ const SalaryPage = () => {
         <Text style={styles.summaryText}>Total Bonuses: ₹{totalBonuses}</Text>
         <Text style={styles.finalSalaryText}>Final Salary: ₹{finalSalary}</Text>
       </View>
-    </View>
+
+      {/* Receipt Section for Particular Date */}
+      <View style={styles.receiptContainer}>
+        <Text style={styles.receiptTitle}>Receipt for {selectedDate}</Text>
+        {advancesForDate.length > 0 ? (
+          advancesForDate.map(item => (
+            <Text key={item.id} style={styles.receiptText}>Advance: ₹{item.amount} on {item.date}</Text>
+          ))
+        ) : (
+          <Text style={styles.receiptText}>No advances on this date</Text>
+        )}
+        {bonusesForDate.length > 0 ? (
+          bonusesForDate.map(item => (
+            <Text key={item.id} style={styles.receiptText}>Bonus: ₹{item.amount} on {item.date}</Text>
+          ))
+        ) : (
+          <Text style={styles.receiptText}>No bonuses on this date</Text>
+        )}
+      </View>
+
+      <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
+        <Text style={styles.confirmButtonText}>Confirm</Text>
+      </TouchableOpacity>
+    </ScrollView>
   );
 };
 
@@ -140,6 +172,41 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#4CAF50',
     textAlign: 'center',
+  },
+  receiptContainer: {
+    marginTop: 20,
+    padding: 20,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  receiptTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  receiptText: {
+    fontSize: 18,
+    marginBottom: 5,
+    color: '#333',
+  },
+  confirmButton: {
+    marginTop: 20,
+    backgroundColor: '#4CAF50',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  confirmButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
 
