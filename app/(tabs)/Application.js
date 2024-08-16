@@ -1,27 +1,43 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Button, Modal, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Button, Modal, Platform, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
-import * as DocumentPicker from 'expo-document-picker';
-import { WebView } from 'react-native-webview';  // To display PDF or other documents
 
 const App = () => {
   const [showApplicationForm, setShowApplicationForm] = useState(false);
   const [applicationText, setApplicationText] = useState('');
   const [attachments, setAttachments] = useState([]);
-  const [showAttachmentModal, setShowAttachmentModal] = useState(false);
   const [sentApplications, setSentApplications] = useState([]);
   const [previewUri, setPreviewUri] = useState(null);
 
-  const handleAttachment = async () => {
-    let result = await DocumentPicker.getDocumentAsync({});
-    if (result.type === 'success') {
-      setAttachments([...attachments, result.uri]);
-      setShowAttachmentModal(false);
+  const handleAttachment = () => {
+    if (Platform.OS === 'web') {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/pdf';
+      input.onchange = async (event) => {
+        const file = event.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const uri = reader.result;
+            setAttachments(prev => [...prev, { uri, name: file.name }]);
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+      input.click();
+    } else {
+      Alert.alert('File Picker', 'Please implement a file picker or use a library for mobile file selection.');
     }
   };
 
   const handleSendApplication = () => {
+    if (applicationText.trim() === '') {
+      Alert.alert('Error', 'Application text cannot be empty.');
+      return;
+    }
+
     const currentDate = new Date();
     const formattedDate = currentDate.toLocaleDateString();
     const formattedTime = currentDate.toLocaleTimeString();
@@ -31,15 +47,29 @@ const App = () => {
       attachments,
       date: formattedDate,
       time: formattedTime,
-      status: 'Pending',  // Default status
+      status: 'Pending',
     };
 
-    setSentApplications([...sentApplications, newApplication]);
+    setSentApplications(prev => [...prev, newApplication]);
     setApplicationText('');
     setAttachments([]);
     setShowApplicationForm(false);
 
-    alert(`Your application was sent on ${formattedDate} at ${formattedTime}.`);
+    Alert.alert('Success', `Your application was sent on ${formattedDate} at ${formattedTime}.`);
+  };
+
+  const handleDownload = (uri) => {
+    if (Platform.OS === 'web') {
+      const link = document.createElement('a');
+      link.href = uri;
+      link.download = uri.split('/').pop();
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      // Mobile-specific download logic might go here
+      Alert.alert('Download', 'Please implement a download function or use a library for mobile file downloading.');
+    }
   };
 
   const navigation = useNavigation();
@@ -51,7 +81,7 @@ const App = () => {
           <Icon name="arrow-back" size={24} color="black" />
         </TouchableOpacity>
         <Text style={styles.headerText}>Ramesh Gupta</Text>
-        <TouchableOpacity onPress={() => setShowApplicationForm(!showApplicationForm)}>
+        <TouchableOpacity onPress={() => setShowApplicationForm(prev => !prev)}>
           <Icon name="send" size={24} color="black" />
         </TouchableOpacity>
       </View>
@@ -72,15 +102,14 @@ const App = () => {
           </View>
           <View style={styles.attachmentContainer}>
             {attachments.length > 0 ? (
-              attachments.map((uri, index) => (
+              attachments.map((file, index) => (
                 <View key={index} style={styles.attachmentItem}>
-                  <Text style={styles.attachmentText}>{uri.split('/').pop()}</Text>
-                  <TouchableOpacity onPress={() => setPreviewUri(uri)}>
-                    <Text style={styles.previewButton}>Preview</Text>
-                  </TouchableOpacity>
+                  <Text style={styles.attachmentText}>{file.name}</Text>
+                  {/* <TouchableOpacity onPress={() => handleDownload(file.uri)}>
+                    <Text style={styles.downloadButton}>Download</Text>
+                  </TouchableOpacity> */}
                   <TouchableOpacity onPress={() => {
-                    const newAttachments = attachments.filter((_, i) => i !== index);
-                    setAttachments(newAttachments);
+                    setAttachments(prev => prev.filter((_, i) => i !== index));
                   }}>
                     <Text style={styles.removeButton}>Remove</Text>
                   </TouchableOpacity>
@@ -92,10 +121,7 @@ const App = () => {
           </View>
           {previewUri && (
             <View style={styles.previewContainer}>
-              <WebView
-                source={{ uri: previewUri }}
-                style={styles.webView}
-              />
+              <Text>Preview for: {previewUri}</Text>
               <Button title="Close Preview" onPress={() => setPreviewUri(null)} />
             </View>
           )}
@@ -113,8 +139,10 @@ const App = () => {
                 <Text style={styles.applicationStatus}>{`Status: ${app.status}`}</Text>
                 <View style={styles.attachmentContainer}>
                   {app.attachments.length > 0 ? (
-                    app.attachments.map((uri, fileIndex) => (
-                      <Text key={fileIndex} style={styles.attachmentText}>{uri.split('/').pop()}</Text>
+                    app.attachments.map((file, fileIndex) => (
+                      <TouchableOpacity key={fileIndex} onPress={() => handleDownload(file.uri)}>
+                        <Text style={styles.attachmentText}>{file.name} </Text>
+                      </TouchableOpacity>
                     ))
                   ) : (
                     <Text style={styles.noAttachments}>No documents attached.</Text>
@@ -125,20 +153,6 @@ const App = () => {
           </View>
         </View>
       )}
-
-      {/* Attachment Modal */}
-      <Modal
-        transparent={true}
-        visible={showAttachmentModal}
-        onRequestClose={() => setShowAttachmentModal(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select a Document</Text>
-            <Button title="Close" onPress={() => setShowAttachmentModal(false)} />
-          </View>
-        </View>
-      </Modal>
     </ScrollView>
   );
 };
@@ -204,7 +218,7 @@ const styles = StyleSheet.create({
     color: 'black',
     flex: 1,
   },
-  previewButton: {
+  downloadButton: {
     color: 'blue',
     fontSize: 16,
   },
@@ -219,11 +233,7 @@ const styles = StyleSheet.create({
   previewContainer: {
     marginTop: 20,
     width: '100%',
-    height: 300, // Adjust the height as needed
-  },
-  webView: {
-    width: '100%',
-    height: '100%',
+    height: 300,
   },
   sentApplications: {
     width: '100%',
@@ -246,44 +256,18 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 10,
     marginBottom: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 3,
   },
   applicationText: {
     fontSize: 16,
     color: 'black',
-    marginBottom: 10,
   },
   applicationDate: {
     fontSize: 14,
     color: 'gray',
-    marginBottom: 10,
   },
   applicationStatus: {
     fontSize: 14,
-    color: 'blue',
-    marginBottom: 10,
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContent: {
-    width: '80%',
-    backgroundColor: 'white',
-    borderRadius: 10,
-    padding: 20,
-    alignItems: 'center',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 15,
+    color: 'green',
   },
 });
 
