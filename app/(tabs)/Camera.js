@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Button, Image, StyleSheet, PermissionsAndroid, Platform, TouchableOpacity } from 'react-native';
+import { View, Text, Button, Image, StyleSheet, PermissionsAndroid, Platform, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
 const AttendancePage = () => {
@@ -7,11 +7,14 @@ const AttendancePage = () => {
   const [location, setLocation] = useState(null);
   const [dateTime, setDateTime] = useState(null);
   const [cameraActive, setCameraActive] = useState(false);
+  const [city, setCity] = useState(null);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [customCityVisible, setCustomCityVisible] = useState(false); // State for showing text box after clicking "Other"
+  const [customCity, setCustomCity] = useState(''); // State for manually entering the city
   const videoRef = useRef(null);
   const navigation = useNavigation();
 
   useEffect(() => {
-    // Request location permission on mount for Android
     if (Platform.OS === 'android') {
       PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION)
         .then(granted => {
@@ -22,8 +25,24 @@ const AttendancePage = () => {
     }
   }, []);
 
-  const handleMarkAttendance = async () => {
-    setCameraActive(true);
+  const handleMarkAttendance = () => {
+    setShowDropdown(true); // Show the dropdown
+  };
+
+  const handleCitySelect = (selectedCity) => {
+    if (selectedCity === 'Other') {
+      setCustomCityVisible(true); // Show text box if "Other" is selected
+      setCity(null);
+    } else {
+      setCity(selectedCity);
+      setCustomCityVisible(false); // Hide text box if other city is selected
+      setShowDropdown(false); // Hide dropdown
+      setCameraActive(true); // Activate the camera
+      startCamera();
+    }
+  };
+
+  const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       if (videoRef.current) {
@@ -72,12 +91,7 @@ const AttendancePage = () => {
   };
 
   const handleBack = () => {
-    // setPhotoUri(null);
-    // setLocation(null);
-    // setDateTime(null);
-    // setCameraActive(false);
-
-    navigation.navigate('Profile')
+    navigation.navigate('Profile');
   };
 
   return (
@@ -88,8 +102,44 @@ const AttendancePage = () => {
         </View>
       )}
 
+      {/* Dropdown for selecting city */}
+      {showDropdown && (
+        <View style={styles.dropdownContainer}>
+          <ScrollView style={styles.dropdown}>
+            {['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Other'].map((cityName) => (
+              <TouchableOpacity
+                key={cityName}
+                style={styles.dropdownItem}
+                onPress={() => handleCitySelect(cityName)}
+              >
+                <Text style={styles.dropdownItemText}>{cityName}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Show text input after clicking "Other" */}
+          {customCityVisible && (
+            <View style={styles.customCityContainer}>
+              <TextInput
+                style={styles.customCityInput}
+                placeholder="Enter your city"
+                value={customCity}
+                onChangeText={setCustomCity}
+                onSubmitEditing={() => {
+                  setCity(customCity);
+                  setShowDropdown(false);
+                  setCameraActive(true); // Start the camera after entering custom city
+                  startCamera();
+                }}
+              />
+            </View>
+          )}
+        </View>
+      )}
+
       {cameraActive && (
         <View style={styles.cameraContainer}>
+          <Text style={styles.cityText}>City: {city || customCity}</Text>
           <video ref={videoRef} style={styles.video} autoPlay />
           <TouchableOpacity style={styles.captureButton} onPress={handleCaptureImage}>
             <Text style={styles.captureButtonText}>Capture Image</Text>
@@ -105,9 +155,12 @@ const AttendancePage = () => {
           <Image source={{ uri: photoUri }} style={styles.photo} />
           <Text style={styles.dateTime}>Date and Time: {dateTime}</Text>
           {location && (
-            <Text style={styles.location}>
-              Location: Latitude {location.latitude.toFixed(6)}, Longitude {location.longitude.toFixed(6)}
-            </Text>
+            <>
+              <Text style={styles.location}>
+                Location: Latitude {location.latitude.toFixed(6)}, Longitude {location.longitude.toFixed(6)}
+              </Text>
+              {(city || customCity) && <Text style={styles.city}>City: {city || customCity}</Text>}
+            </>
           )}
         </View>
       )}
@@ -183,6 +236,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
     textAlign: 'center',
+  },
+  dropdownContainer: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  dropdown: {
+    backgroundColor: '#fff',
+    width: '90%', // Increased the width of dropdown for better visibility
+    maxHeight: '50%', // Increased the height of dropdown
+    borderRadius: 10,
+    padding: 10,
+    borderColor: '#ccc',
+    borderWidth: 1,
+  },
+  dropdownItem: {
+    padding: 20, // Increased the padding for dropdown items
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+  },
+  dropdownItemText: {
+    fontSize: 18,
+    color: '#333',
+  },
+  customCityContainer: {
+    marginTop: 10,
+    width: '90%',
+    alignSelf: 'center',
+  },
+  customCityInput: {
+    padding: 15, // Increased padding for text input
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 5,
+  },
+  cityText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
   },
 });
 
